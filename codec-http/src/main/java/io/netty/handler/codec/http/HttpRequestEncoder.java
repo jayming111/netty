@@ -28,6 +28,13 @@ public class HttpRequestEncoder extends HttpObjectEncoder<HttpRequest> {
     private static final char SLASH = '/';
     private static final byte[] CRLF = { CR, LF };
 
+    public HttpRequestEncoder(int mergeThreshold) {
+        super(mergeThreshold);
+    }
+
+    public HttpRequestEncoder() {
+    }
+
     @Override
     public boolean acceptOutboundMessage(Object msg) throws Exception {
         return super.acceptOutboundMessage(msg) && !(msg instanceof HttpResponse);

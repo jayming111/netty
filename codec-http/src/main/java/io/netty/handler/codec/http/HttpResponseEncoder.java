@@ -27,6 +27,13 @@ import static io.netty.handler.codec.http.HttpConstants.*;
 public class HttpResponseEncoder extends HttpObjectEncoder<HttpResponse> {
     private static final byte[] CRLF = { CR, LF };
 
+    public HttpResponseEncoder(int mergeThreshold) {
+        super(mergeThreshold);
+    }
+
+    public HttpResponseEncoder() {
+    }
+
     @Override
     public boolean acceptOutboundMessage(Object msg) throws Exception {
         return super.acceptOutboundMessage(msg) && !(msg instanceof HttpRequest);
