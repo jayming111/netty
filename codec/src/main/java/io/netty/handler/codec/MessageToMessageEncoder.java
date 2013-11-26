@@ -52,12 +52,13 @@ import java.util.List;
 public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerAdapter {
 
     private final TypeParameterMatcher matcher;
+    private final int mergeThreshold;
 
     /**
      * Create a new instance which will try to detect the types to match out of the type parameter of the class.
      */
     protected MessageToMessageEncoder() {
-        matcher = TypeParameterMatcher.find(this, MessageToMessageEncoder.class, "I");
+        this(0);
     }
 
     /**
@@ -66,7 +67,17 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
      * @param outboundMessageType   The type of messages to match and so encode
      */
     protected MessageToMessageEncoder(Class<? extends I> outboundMessageType) {
+        this(outboundMessageType, 0);
+    }
+
+    protected MessageToMessageEncoder(int mergeThreshold) {
+        matcher = TypeParameterMatcher.find(this, MessageToMessageEncoder.class, "I");
+        this.mergeThreshold = mergeThreshold;
+    }
+
+    protected MessageToMessageEncoder(Class<? extends I> outboundMessageType, int mergeThreshold) {
         matcher = TypeParameterMatcher.get(outboundMessageType);
+        this.mergeThreshold = mergeThreshold;
     }
 
     /**
@@ -79,10 +90,14 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        RecyclableArrayList out = null;
+        List<Object> out = null;
         try {
             if (acceptOutboundMessage(msg)) {
-                out = RecyclableArrayList.newInstance();
+                if (mergeThreshold > 0) {
+                    out = EncoderArrayList.newInstance(mergeThreshold);
+                } else {
+                    out = RecyclableArrayList.newInstance();
+                }
                 @SuppressWarnings("unchecked")
                 I cast = (I) msg;
                 try {
@@ -92,7 +107,7 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
                 }
 
                 if (out.isEmpty()) {
-                    out.recycle();
+                    recycle(out);
                     out = null;
 
                     throw new EncoderException(
@@ -114,8 +129,16 @@ public abstract class MessageToMessageEncoder<I> extends ChannelOutboundHandlerA
                     }
                     ctx.write(out.get(sizeMinusOne), promise);
                 }
-                out.recycle();
+                recycle(out);
             }
+        }
+    }
+
+    private void recycle(List<Object> out) {
+        if (mergeThreshold > 0) {
+            ((EncoderArrayList) out).recycle();
+        } else {
+            ((RecyclableArrayList) out).recycle();
         }
     }
 
